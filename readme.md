@@ -1,4 +1,4 @@
-# Factorization-based segmentation algorithm
+# Factorization-based segmentation Python implementation
 
 This is a Python implementation of the factorization-based segmentation algorithm, which is described in 
 
