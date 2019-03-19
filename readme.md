@@ -9,8 +9,11 @@ The MATLAB implementation can be found at [here](https://github.com/yuanj07/FSEG
 ## Prerequisites
 
 Python 2.7
+
 Numpy
+
 Scipy
+
 Scikit-image
 
 ## Usage
