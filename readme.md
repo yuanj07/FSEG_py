@@ -1,10 +1,10 @@
 # Factorization-based segmentation Python implementation
 
-This is a Python implementation of the factorization-based segmentation algorithm, which is described in 
+This is a Python implementation of the factorization-based segmentation algorithm, which fast segment textured images. The algorithm is described in 
 
 **J. Yuan, D. L. Wang, and A. M. Cheriyadat. Factorization-based texture segmentation. IEEE Transactions on Image Processing, 2015.**
 
-The MATLAB implementation can be found at [here](https://github.com/yuanj07/FSEG). The results from two implementations are similar. Local spectral histogram computation is implemented using pure matrix operations, and thus achieves a speed comparable to the mex c code in MATLAB implementation.  
+[Here](https://sites.google.com/site/factorizationsegmentation/) is a brief introduction. There is also a MATLAB [implementation](https://github.com/yuanj07/FSEG). The results from two implementations are similar. Local spectral histogram computation is coded using pure matrix operations, and thus achieves a speed comparable to the mex c code in MATLAB implementation.  
 
 ## Prerequisites
 
