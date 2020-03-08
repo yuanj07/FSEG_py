@@ -23,8 +23,9 @@ To try the code, run
 ```sh
 python FctSeg.py
 ```
+This verison implements the complete algorithm, which segments an image in a fully automatic fashion. 
 
-or try the version with given seeds
+To try the version with given seeds, run
 
 ```sh
 python FctSeg_seed.py
