@@ -50,23 +50,26 @@ def SHcomp(Ig, ws, BinN=11):
     np.cumsum(integral_hist, axis=0, out=integral_hist, dtype=np.float32)
 
     # compute spectral histogram based on integral histogram
-    sh_mtx = np.zeros((h, w, BinN*bn), dtype=np.float32)
-    for i in range(h):
-        for j in range(w):
-            y_min = max(i - ws - 1, 0)
-            x_min = max(j - ws - 1, 0)
-            y_max = min(i + ws, h - 1)
-            x_max = min(j + ws, w - 1)
-            if y_min == 0 and x_min == 0:
-                sh_mtx[i, j, :] = integral_hist[y_max, x_max, :]
-            elif y_min == 0:
-                sh_mtx[i, j, :] = integral_hist[y_max, x_max, :] - integral_hist[y_max, x_min, :]
-            elif x_min == 0:
-                sh_mtx[i, j, :] = integral_hist[y_max, x_max, :] - integral_hist[y_min, x_max, :]
-            else:
-                sh_mtx[i, j, :] = integral_hist[y_max, x_max, :] + integral_hist[y_min, x_min, :] - integral_hist[y_max, x_min, :] - integral_hist[y_min, x_max, :]
+    padding_l = np.zeros((h, ws + 1, BinN * bn), dtype=np.int32)
+    padding_r = np.tile(integral_hist[:, -1:, :], (1, ws, 1))
 
-            sh_mtx[i, j, :] /= (np.sum(sh_mtx[i, j, :])*1./bn)
+    integral_hist_pad_tmp = np.concatenate([padding_l, integral_hist, padding_r], axis=1)
+
+    padding_t = np.zeros((ws + 1, integral_hist_pad_tmp.shape[1], BinN * bn), dtype=np.int32)
+    padding_b = np.tile(integral_hist_pad_tmp[-1:, :, :], (ws, 1, 1))
+
+    integral_hist_pad = np.concatenate([padding_t, integral_hist_pad_tmp, padding_b], axis=0)
+
+    integral_hist_1 = integral_hist_pad[ws + 1 + ws:, ws + 1 + ws:, :]
+    integral_hist_2 = integral_hist_pad[:-ws - ws - 1, :-ws - ws - 1, :]
+    integral_hist_3 = integral_hist_pad[ws + 1 + ws:, :-ws - ws -1, :]
+    integral_hist_4 = integral_hist_pad[:-ws - ws - 1, ws + 1 + ws:, :]
+
+    sh_mtx = integral_hist_1 + integral_hist_2 - integral_hist_3 - integral_hist_4
+
+    histsum = np.sum(sh_mtx, axis=-1, keepdims=True) * 1. / bn
+
+    sh_mtx = np.float32(sh_mtx) / np.float32(histsum)
 
     return sh_mtx
 
