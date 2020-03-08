@@ -1,6 +1,6 @@
 # Factorization-based segmentation Python implementation
 
-This is a Python implementation of the factorization-based segmentation algorithm, which fast segment textured images. The algorithm is described in 
+This is a Python implementation of the factorization-based segmentation algorithm, which fast segments textured images. The algorithm is described in 
 
 **J. Yuan, D. L. Wang, and A. M. Cheriyadat. Factorization-based texture segmentation. IEEE Transactions on Image Processing, 2015.**
 
