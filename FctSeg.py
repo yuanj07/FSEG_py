@@ -8,6 +8,8 @@ import numpy as np
 from numpy import linalg as LA
 from fseg_filters import image_filtering
 import matplotlib.pyplot as plt
+import argparse
+import cv2
 
 from scipy import linalg as LAsci
 import math
@@ -23,6 +25,7 @@ def SHcomp(Ig, ws, BinN=11):
     :return: local spectral histogram at each pixel
     """
     h, w, bn = Ig.shape
+    ws = int(ws)
 
     # quantize values at each pixel into bin ID
     for i in range(bn):
@@ -33,14 +36,14 @@ def SHcomp(Ig, ws, BinN=11):
         b_interval = (b_max - b_min) * 1. / BinN
         Ig[:, :, i] = np.floor((Ig[:, :, i] - b_min) / b_interval)
 
-    Ig[Ig >= BinN] = BinN-1
+    Ig[Ig >= BinN] = BinN - 1
     Ig = np.int32(Ig)
 
     # convert to one hot encoding
     one_hot_pix = []
     for i in range(bn):
-        one_hot_pix_b = np.zeros((h*w, BinN), dtype=np.int32)
-        one_hot_pix_b[np.arange(h*w), Ig[:, :, i].flatten()] = 1
+        one_hot_pix_b = np.zeros((h * w, BinN), dtype=np.int32)
+        one_hot_pix_b[np.arange(h * w), Ig[:, :, i].flatten()] = 1
         one_hot_pix.append(one_hot_pix_b.reshape((h, w, BinN)))
 
     # compute integral histogram
@@ -62,7 +65,7 @@ def SHcomp(Ig, ws, BinN=11):
 
     integral_hist_1 = integral_hist_pad[ws + 1 + ws:, ws + 1 + ws:, :]
     integral_hist_2 = integral_hist_pad[:-ws - ws - 1, :-ws - ws - 1, :]
-    integral_hist_3 = integral_hist_pad[ws + 1 + ws:, :-ws - ws -1, :]
+    integral_hist_3 = integral_hist_pad[ws + 1 + ws:, :-ws - ws - 1, :]
     integral_hist_4 = integral_hist_pad[:-ws - ws - 1, ws + 1 + ws:, :]
 
     sh_mtx = integral_hist_1 + integral_hist_2 - integral_hist_3 - integral_hist_4
@@ -77,10 +80,11 @@ def SHcomp(Ig, ws, BinN=11):
 def SHedgeness(sh_mtx, ws):
     h, w, _ = sh_mtx.shape
     edge_map = np.ones((h, w)) * -1
-    for i in range(ws, h-ws-1):
-        for j in range(ws, w-ws-1):
-            edge_map[i, j] = np.sqrt(np.sum((sh_mtx[i - ws, j, :] - sh_mtx[i + ws, j, :])**2)
-                                     + np.sum((sh_mtx[i, j - ws, :] - sh_mtx[i, j + ws, :])**2))
+    ws = int(ws)
+    for i in range(ws, h - ws - 1):
+        for j in range(ws, w - ws - 1):
+            edge_map[i, j] = np.sqrt(np.sum((sh_mtx[i - ws, j, :] - sh_mtx[i + ws, j, :]) ** 2)
+                                     + np.sum((sh_mtx[i, j - ws, :] - sh_mtx[i, j + ws, :]) ** 2))
     return edge_map
 
 
@@ -111,18 +115,18 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
 
     if segn == 0:  # estimate the segment number
         lse_ratio = np.cumsum(k) * 1. / (N1 * N2)
-        print lse_ratio
-        print np.sum(k)/(N1 * N2)
+        print(lse_ratio)
+        print(np.sum(k) / (N1 * N2))
         segn = np.sum(lse_ratio > omega)
-        print 'Estimated segment number: %d' % segn
+        print('Estimated segment number: %d' % segn)
 
         if segn <= 1:
             segn = 2
-            print 'Warning: Segment number is set to 2. May need to reduce omega for better segment number estimation.'
+            print('Warning: Segment number is set to 2. May need to reduce omega for better segment number estimation.')
 
     dimn = segn
 
-    U1 = v[:, idx[-1:-dimn-1:-1]]
+    U1 = v[:, idx[-1:-dimn - 1:-1]]
 
     Y1 = np.dot(Y, U1)  # project features onto the subspace
 
@@ -130,7 +134,7 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
 
     edge_map_flatten = edge_map.flatten()
 
-    Y_woedge = Y1[(edge_map_flatten >= 0) & (edge_map_flatten <= np.max(edge_map)*0.4), :]
+    Y_woedge = Y1[(edge_map_flatten >= 0) & (edge_map_flatten <= np.max(edge_map) * 0.4), :]
 
     # find representative features using clustering
     cls_cen = np.zeros((segn, dimn), dtype=np.float32)
@@ -141,7 +145,7 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
     cls_cen[1, :] = Y_woedge[np.argmax(D), :]
 
     cen_id = 1
-    while cen_id < segn-1:
+    while cen_id < segn - 1:
         cen_id += 1
         D_tmp = np.zeros((cen_id, Y_woedge.shape[0]), dtype=np.float32)
         for i in range(cen_id):
@@ -161,7 +165,7 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
         for i in range(segn):
             cls_cen_new[i, :] = np.mean(Y_woedge[cls_id == i, :], axis=0)
 
-        if np.max((cls_cen_new - cls_cen)**2) < .00001:
+        if np.max((cls_cen_new - cls_cen) ** 2) < .00001:
             is_converging = 0
         else:
             cls_cen = cls_cen_new * 1.
@@ -198,16 +202,59 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
     return seg_label.reshape((N1, N2))
 
 
+def overlay(img1, img2, alpha, **kwargs):
+    """
+        Plots an overlay of an image and its segmentation using pyplot.imshow with useful parameters.
+    Args:
+        img1: original image, defalut cmap is fixed as gray an alpha is fixed as 1.0
+        img2: label image, cmap can be set in kwargs
+        alpha: alpha value of the label image
+    Custom kwargs:
+        size: if used, defines figsize in plt.figure(figsize(size, size))
+    Default kwargs for imshow (can be overwritten):
+        cmap: default is gray (and cannot be overwitten for img1, only for img2)
+        interpolation:'none'
+        aspect:'equal'
+    """
+    # figure and custom params
+    if 'size' in kwargs.keys():
+        squaresize = kwargs.pop('size')
+        fig = plt.figure(figsize=(squaresize, squaresize))
+    else:
+        fig = plt.figure()
+    # default imshow params
+    params = {'interpolation': 'none', 'aspect': 'equal'}
+    # inserting user kwargs
+    params.update(kwargs)
+    # original image
+    params.update({'cmap': 'gray', 'alpha': 1})
+    plt.imshow(img1, **params)
+    # segmentation layer (colored)
+    params.update({'alpha': alpha * (img2 > 0)})  # masking alpha (filtering out the background (0) values)
+    params.update(kwargs)  # inserting user kwargs (and overwriting cmap for the colored image)
+    plt.imshow(img2, **params)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--file", help="file path")
+    args = parser.parse_args()
+    file_path = args.file
     time0 = time.time()
     # an example of using Fseg
     # read image
-    img = io.imread('M1.pgm')
+    # img = io.imread("img_surmas.png")
+    img = cv2.imread("Images/img_surmas.png", 0)
 
     # define filter bank and apply to image. for color images, convert rgb to grey scale and then apply filter bank
     filter_list = [('log', .5, [3, 3]), ('log', 1, [5, 5]),
-                   ('gabor', 1.5, 0), ('gabor', 1.5, math.pi/2), ('gabor', 1.5, math.pi/4), ('gabor', 1.5, -math.pi/4),
-                   ('gabor', 2.5, 0), ('gabor', 2.5, math.pi/2), ('gabor', 2.5, math.pi/4), ('gabor', 2.5, -math.pi/4)
+                   ('gabor', 1.5, 0), ('gabor', 1.5, math.pi / 2), ('gabor', 1.5, math.pi / 4),
+                   ('gabor', 1.5, -math.pi / 4),
+                   ('gabor', 2.5, 0), ('gabor', 2.5, math.pi / 2), ('gabor', 2.5, math.pi / 4),
+                   ('gabor', 2.5, -math.pi / 4)
                    ]
 
     filter_out = image_filtering(img, filter_list=filter_list)
@@ -216,13 +263,15 @@ if __name__ == '__main__':
     Ig = np.concatenate((np.float32(img.reshape((img.shape[0], img.shape[1], 1))), filter_out), axis=2)
 
     # run segmentation. try different window size, with and without nonneg constraints
-    seg_out = Fseg(Ig, ws=25, segn=0, omega=.045, nonneg_constraint=True)
+    # seg_out = Fseg(Ig, ws=25, segn=0, omega=.045, nonneg_constraint=True) -> This's a good parameter to run
+    seg_out = Fseg(Ig, ws=27, segn=6, omega=.045, nonneg_constraint=True)
 
-    print 'FSEG runs in %0.2f seconds. ' % (time.time() - time0)
+    print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
 
     # show results
-    fig, ax = plt.subplots(ncols=2, sharex=True, sharey=True, figsize=(12, 6))
-    ax[0].imshow(img, cmap='gray')
-    ax[1].imshow(seg_out, cmap='gray')
-    plt.tight_layout()
-    plt.show()
+    # fig, ax = plt.subplots(ncols=2, sharex=True, sharey=True, figsize=(12, 6))
+    # ax[0].imshow(img, cmap='gray')
+    # ax[1].imshow(seg_out, cmap='gray')
+    # plt.tight_layout()
+    # plt.show()
+    overlay(img, seg_out, 0.6, cmap="viridis")

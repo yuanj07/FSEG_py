@@ -31,14 +31,14 @@ def SHcomp(Ig, ws, BinN=11):
         b_interval = (b_max - b_min) * 1. / BinN
         Ig[:, :, i] = np.floor((Ig[:, :, i] - b_min) / b_interval)
 
-    Ig[Ig >= BinN] = BinN-1
+    Ig[Ig >= BinN] = BinN - 1
     Ig = np.int32(Ig)
 
     # convert to one hot encoding
     one_hot_pix = []
     for i in range(bn):
-        one_hot_pix_b = np.zeros((h*w, BinN), dtype=np.int32)
-        one_hot_pix_b[np.arange(h*w), Ig[:, :, i].flatten()] = 1
+        one_hot_pix_b = np.zeros((h * w, BinN), dtype=np.int32)
+        one_hot_pix_b[np.arange(h * w), Ig[:, :, i].flatten()] = 1
         one_hot_pix.append(one_hot_pix_b.reshape((h, w, BinN)))
 
     # compute integral histogram
@@ -60,7 +60,7 @@ def SHcomp(Ig, ws, BinN=11):
 
     integral_hist_1 = integral_hist_pad[ws + 1 + ws:, ws + 1 + ws:, :]
     integral_hist_2 = integral_hist_pad[:-ws - ws - 1, :-ws - ws - 1, :]
-    integral_hist_3 = integral_hist_pad[ws + 1 + ws:, :-ws - ws -1, :]
+    integral_hist_3 = integral_hist_pad[ws + 1 + ws:, :-ws - ws - 1, :]
     integral_hist_4 = integral_hist_pad[:-ws - ws - 1, ws + 1 + ws:, :]
 
     sh_mtx = integral_hist_1 + integral_hist_2 - integral_hist_3 - integral_hist_4
@@ -107,7 +107,7 @@ def Fseg(Ig, ws, seeds):
 if __name__ == '__main__':
     time0 = time.time()
     # an example of using Fseg
-    img = io.imread('M1.pgm')
+    img = io.imread('../M1.pgm')
 
     # define filter bank and apply to image. for color images, convert rgb to grey scale and then apply filter bank
     filter_list = [('log', .5, [3, 3]), ('log', 1.2, [7, 7])]
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     # run segmentation. try different window size
     seg_out = Fseg(Ig, ws=19, seeds=seeds)
 
-    print 'FSEG runs in %0.2f seconds. ' % (time.time() - time0)
+    print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
 
     # show results
     fig, ax = plt.subplots(ncols=2, sharex=True, sharey=True, figsize=(10, 5))
