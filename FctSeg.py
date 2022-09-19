@@ -5,15 +5,12 @@ Factorization based segmentation
 """
 import time
 import numpy as np
-from numpy import linalg as LA
-from fseg_filters import image_filtering
-import matplotlib.pyplot as plt
 import argparse
 import cv2
 
 from scipy import linalg as LAsci
-import math
-from skimage import io, color
+from numpy import linalg as LA
+from utils.fseg_filters import image_filtering, overlay
 
 
 def SHcomp(Ig, ws, BinN=11):
@@ -202,59 +199,36 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
     return seg_label.reshape((N1, N2))
 
 
-def overlay(img1, img2, alpha, **kwargs):
-    """
-        Plots an overlay of an image and its segmentation using pyplot.imshow with useful parameters.
-    Args:
-        img1: original image, defalut cmap is fixed as gray an alpha is fixed as 1.0
-        img2: label image, cmap can be set in kwargs
-        alpha: alpha value of the label image
-    Custom kwargs:
-        size: if used, defines figsize in plt.figure(figsize(size, size))
-    Default kwargs for imshow (can be overwritten):
-        cmap: default is gray (and cannot be overwitten for img1, only for img2)
-        interpolation:'none'
-        aspect:'equal'
-    """
-    # figure and custom params
-    if 'size' in kwargs.keys():
-        squaresize = kwargs.pop('size')
-        fig = plt.figure(figsize=(squaresize, squaresize))
-    else:
-        fig = plt.figure()
-    # default imshow params
-    params = {'interpolation': 'none', 'aspect': 'equal'}
-    # inserting user kwargs
-    params.update(kwargs)
-    # original image
-    params.update({'cmap': 'gray', 'alpha': 1})
-    plt.imshow(img1, **params)
-    # segmentation layer (colored)
-    params.update({'alpha': alpha * (img2 > 0)})  # masking alpha (filtering out the background (0) values)
-    params.update(kwargs)  # inserting user kwargs (and overwriting cmap for the colored image)
-    plt.imshow(img2, **params)
-    plt.axis('off')
-    plt.tight_layout()
-    plt.show()
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", help="file path")
+    parser.add_argument("-ws", "--window_size", help="window size for local special histogram")
+    parser.add_argument("-segn", "--number_segments",
+                        help="number of segment. if set to 0, the number will be automatically estimated")
+    parser.add_argument("-omega", "--error_treshold",
+                        help="error threshod for estimating segment number. need to adjust for different filter bank.")
+    parser.add_argument("-nonneg_constraint", "--nonneg_constraint", help="whether apply negative matrix factorization")
     args = parser.parse_args()
+
     file_path = args.file
+    ws = int(args.window_size)
+    n_segments = int(args.number_segments)
+    omega = float(args.error_treshold)
+    nonneg_constraint = bool(args.nonneg_constraint)
+
     time0 = time.time()
     # an example of using Fseg
     # read image
     # img = io.imread("img_surmas.png")
-    img = cv2.imread("Images/img_surmas.png", 0)
+    img = cv2.imread(file_path, 0)
+    file_name = file_path.split("/")[-1]
 
     # define filter bank and apply to image. for color images, convert rgb to grey scale and then apply filter bank
     filter_list = [('log', .5, [3, 3]), ('log', 1, [5, 5]),
-                   ('gabor', 1.5, 0), ('gabor', 1.5, math.pi / 2), ('gabor', 1.5, math.pi / 4),
-                   ('gabor', 1.5, -math.pi / 4),
-                   ('gabor', 2.5, 0), ('gabor', 2.5, math.pi / 2), ('gabor', 2.5, math.pi / 4),
-                   ('gabor', 2.5, -math.pi / 4)
+                   ('gabor', 1.5, 0), ('gabor', 1.5, np.pi / 2), ('gabor', 1.5, np.pi / 4),
+                   ('gabor', 1.5, -np.pi / 4),
+                   ('gabor', 2.5, 0), ('gabor', 2.5, np.pi / 2), ('gabor', 2.5, np.pi / 4),
+                   ('gabor', 2.5, -np.pi / 4)
                    ]
 
     filter_out = image_filtering(img, filter_list=filter_list)
@@ -264,7 +238,7 @@ if __name__ == '__main__':
 
     # run segmentation. try different window size, with and without nonneg constraints
     # seg_out = Fseg(Ig, ws=25, segn=0, omega=.045, nonneg_constraint=True) -> This's a good parameter to run
-    seg_out = Fseg(Ig, ws=27, segn=6, omega=.045, nonneg_constraint=True)
+    seg_out = Fseg(Ig, ws=ws, segn=n_segments, omega=omega, nonneg_constraint=nonneg_constraint)
 
     print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
 
@@ -274,4 +248,4 @@ if __name__ == '__main__':
     # ax[1].imshow(seg_out, cmap='gray')
     # plt.tight_layout()
     # plt.show()
-    overlay(img, seg_out, 0.6, cmap="viridis")
+    overlay(img, seg_out, 0.6, cmap="viridis", save_fig="ResultImages/" + file_name)
