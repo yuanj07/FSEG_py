@@ -114,10 +114,10 @@ if __name__ == '__main__':
 
     file_path = args.file
     ws = int(args.window_size)
-    #seeds = args.seeds
-    # n_segments = int(args.number_segments)
-    # omega = float(args.error_treshold)
-    # nonneg_constraint = bool(args.nonneg_constraint)
+    seeds = args.seeds
+    n_segments = int(args.number_segments)
+    omega = float(args.error_treshold)
+    nonneg_constraint = bool(args.nonneg_constraint)
     time0 = time.time()
     # an example of using Fseg
     img = cv2.imread(file_path, 0)
@@ -138,11 +138,4 @@ if __name__ == '__main__':
     print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
 
     # show results
-    # fig, ax = plt.subplots(ncols=2, sharex=True, sharey=True, figsize=(10, 5))
-    # ax[0].imshow(img, cmap='gray')
-    # seeds = np.array(seeds)
-    # plt.plot(seeds[:, 1], seeds[:, 0], 'r*')
-    # ax[1].imshow(seg_out, cmap='gray')
-    # plt.tight_layout()
-    # plt.show()
     overlay(img, seg_out, 0.6, cmap="viridis")

@@ -208,6 +208,7 @@ if __name__ == '__main__':
     parser.add_argument("-omega", "--error_treshold",
                         help="error threshod for estimating segment number. need to adjust for different filter bank.")
     parser.add_argument("-nonneg_constraint", "--nonneg_constraint", help="whether apply negative matrix factorization")
+    parser.add_argument("-save_dir", "--save_dir", help="path with the file and extension to save the final result")
     args = parser.parse_args()
 
     file_path = args.file
@@ -215,11 +216,11 @@ if __name__ == '__main__':
     n_segments = int(args.number_segments)
     omega = float(args.error_treshold)
     nonneg_constraint = bool(args.nonneg_constraint)
+    save_dir = args.save_dir
 
     time0 = time.time()
     # an example of using Fseg
     # read image
-    # img = io.imread("img_surmas.png")
     img = cv2.imread(file_path, 0)
     file_name = file_path.split("/")[-1]
 
@@ -243,9 +244,4 @@ if __name__ == '__main__':
     print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
 
     # show results
-    # fig, ax = plt.subplots(ncols=2, sharex=True, sharey=True, figsize=(12, 6))
-    # ax[0].imshow(img, cmap='gray')
-    # ax[1].imshow(seg_out, cmap='gray')
-    # plt.tight_layout()
-    # plt.show()
     overlay(img, seg_out, 0.6, cmap="viridis", save_fig="ResultImages/" + file_name)

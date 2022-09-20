@@ -8,9 +8,14 @@ This is a Python implementation of the factorization-based segmentation algorith
 
 There is also a MATLAB [implementation](https://github.com/yuanj07/FSEG). The results from two implementations are similar. Local spectral histogram computation is coded using pure matrix operations, and thus achieves a speed comparable to the mex c code in MATLAB implementation.  
 
+**OBS** : This repository is a fork for the [original code](https://github.com/yuanj07/FSEG_py)
+
+## TODO
+In this actual stage, this code is only reading gray-scale images. Need to move later to read BGR/RGB images
+
 ## Prerequisites
 
-Python 2.7
+Python 3.9 or above
 
 Numpy
 
