@@ -6,7 +6,7 @@ import cv2
 from scipy import ndimage
 
 
-def io_from_prompt(img_path: str, shape_size: tuple[int, int, int], dtype: str) -> np.ndarray:
+def io_from_prompt(img_path: str, shape_size: tuple[int, int, int] or tuple[int, int], dtype: str) -> np.ndarray:
     """
 
     :param img_path:
