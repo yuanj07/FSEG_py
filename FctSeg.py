@@ -208,7 +208,9 @@ if __name__ == '__main__':
     parser.add_argument("-omega", "--error_treshold",
                         help="error threshod for estimating segment number. need to adjust for different filter bank.")
     parser.add_argument("-nonneg_constraint", "--nonneg_constraint", help="whether apply negative matrix factorization")
-    parser.add_argument("-save_dir", "--save_dir", help="path with the file and extension to save the final result")
+    parser.add_argument("-save_dir", "--save_dir", help="path with the folder to save the file")
+    parser.add_argument("-save_file_name", "--save_file_name",
+                        help="file name with the extension to save the final result")
     args = parser.parse_args()
 
     file_path = args.file
@@ -217,6 +219,7 @@ if __name__ == '__main__':
     omega = float(args.error_treshold)
     nonneg_constraint = bool(args.nonneg_constraint)
     save_dir = args.save_dir
+    save_file_name = args.save_file_name
 
     time0 = time.time()
     # an example of using Fseg
@@ -242,6 +245,7 @@ if __name__ == '__main__':
     seg_out = Fseg(Ig, ws=ws, segn=n_segments, omega=omega, nonneg_constraint=nonneg_constraint)
 
     print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
+    title = "Plot using ws={}, segn={}, omega={} and nonneg_flag={}".format(ws, n_segments, omega, nonneg_constraint)
 
     # show results
-    overlay(img, seg_out, 0.6, cmap="viridis", save_fig="ResultImages/" + file_name)
+    overlay(img, seg_out, 0.6, cmap="viridis", save_fig=save_dir + save_file_name, save_dir=save_dir, plot_title=title)

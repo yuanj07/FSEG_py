@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 
 from scipy import ndimage
@@ -19,7 +20,7 @@ def log_filter(sgm, fsize):
     for x in range(-wins_x, wins_x + 1):
         for y in range(-wins_y, wins_y + 1):
             out[wins_y + y, wins_x + x] = - 1. / (np.pi * sgm ** 4.) * (
-                        1. - (x * x + y * y) / (2. * sgm * sgm)) * np.exp(-(x * x + y * y) / (2. * sgm * sgm))
+                    1. - (x * x + y * y) / (2. * sgm * sgm)) * np.exp(-(x * x + y * y) / (2. * sgm * sgm))
 
     return out - np.mean(out)
 
@@ -86,9 +87,13 @@ def overlay(img1, img2, alpha, **kwargs):
 
     if "save_fig" in kwargs.keys():
         save_fig_name = kwargs.pop("save_fig")
+        save_dir = kwargs.pop("save_dir")
+        title = kwargs.pop("plot_title")
 
     else:
         save_fig_name = ""
+        save_dir = ""
+        title = ""
 
     # default imshow params
     params = {'interpolation': 'none', 'aspect': 'equal'}
@@ -100,11 +105,14 @@ def overlay(img1, img2, alpha, **kwargs):
     # segmentation layer (colored)
     params.update({'alpha': alpha * (img2 > 0)})  # masking alpha (filtering out the background (0) values)
     params.update(kwargs)  # inserting user kwargs (and overwriting cmap for the colored image)
+    plt.title(title, fontsize=12)
+    plt.suptitle("this method found {} labels".format(img2.max() + 1))
     plt.imshow(img2, **params)
     plt.axis('off')
     plt.tight_layout()
 
     if save_fig_name:
+        os.makedirs(save_dir, exist_ok=True)
         plt.savefig(save_fig_name)
 
     plt.show()

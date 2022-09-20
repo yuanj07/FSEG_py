@@ -11,6 +11,7 @@ import cv2
 from scipy import linalg as LAsci
 from utils.fseg_filters import image_filtering, overlay
 
+
 def SHcomp(Ig, ws, BinN=11):
     """
     Compute local spectral histogram using integral histograms
@@ -20,6 +21,7 @@ def SHcomp(Ig, ws, BinN=11):
     :return: local spectral histogram at each pixel
     """
     h, w, bn = Ig.shape
+    ws = int(ws)
 
     # quantize values at each pixel into bin ID
     for i in range(bn):
@@ -108,16 +110,19 @@ if __name__ == '__main__':
 
     parser.add_argument("-f", "--file", help="file path")
     parser.add_argument("-ws", "--window_size", help="window size for local special histogram")
-    # parser.add_argument("-s", "--seeds",
-    #                     help="list of coordinates [row, column] for seeds. each seed represent one type of texture")
+    parser.add_argument("-s", "--seeds",
+                        help="list of coordinates [row, column] for seeds. each seed represent one type of texture")
+    parser.add_argument("-save_dir", "--save_dir", help="path with the folder to save the file")
+    parser.add_argument("-save_file_name", "--save_file_name",
+                        help="file name with the extension to save the final result")
     args = parser.parse_args()
 
     file_path = args.file
     ws = int(args.window_size)
-    seeds = args.seeds
-    n_segments = int(args.number_segments)
-    omega = float(args.error_treshold)
-    nonneg_constraint = bool(args.nonneg_constraint)
+    #seeds = args.seeds
+    save_dir = args.save_dir
+    save_file_name = args.save_file_name
+
     time0 = time.time()
     # an example of using Fseg
     img = cv2.imread(file_path, 0)
@@ -136,6 +141,7 @@ if __name__ == '__main__':
     seg_out = Fseg(Ig, ws=ws, seeds=seeds)
 
     print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
+    title = "Plot using ws={}".format(ws)
 
     # show results
-    overlay(img, seg_out, 0.6, cmap="viridis")
+    overlay(img, seg_out, 0.6, cmap="viridis", save_fig=save_dir + save_file_name, save_dir=save_dir, plot_title=title)
