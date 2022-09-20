@@ -6,14 +6,13 @@ Factorization based segmentation
 import time
 import numpy as np
 import argparse
-import cv2
 
 from scipy import linalg as LAsci
 from numpy import linalg as LA
-from utils.fseg_filters import image_filtering, overlay
+from utils.fseg_filters import image_filtering, overlay, io_from_prompt
 
 
-def SHcomp(Ig, ws, BinN=11):
+def _SHcomp(Ig, ws, BinN=11):
     """
     Compute local spectral histogram using integral histograms
     :param Ig: a n-band image
@@ -74,7 +73,7 @@ def SHcomp(Ig, ws, BinN=11):
     return sh_mtx
 
 
-def SHedgeness(sh_mtx, ws):
+def _SHedgeness(sh_mtx, ws):
     h, w, _ = sh_mtx.shape
     edge_map = np.ones((h, w)) * -1
     ws = int(ws)
@@ -85,7 +84,7 @@ def SHedgeness(sh_mtx, ws):
     return edge_map
 
 
-def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
+def _Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
     """
     Factorization based segmentation
     :param Ig: a n-band image
@@ -99,7 +98,7 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
     N1, N2, bn = Ig.shape
 
     ws = ws / 2
-    sh_mtx = SHcomp(Ig, ws)
+    sh_mtx = _SHcomp(Ig, ws)
     sh_dim = sh_mtx.shape[2]
 
     Y = (sh_mtx.reshape((N1 * N2, sh_dim)))
@@ -127,7 +126,7 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
 
     Y1 = np.dot(Y, U1)  # project features onto the subspace
 
-    edge_map = SHedgeness(Y1.reshape((N1, N2, dimn)), ws)
+    edge_map = _SHedgeness(Y1.reshape((N1, N2, dimn)), ws)
 
     edge_map_flatten = edge_map.flatten()
 
@@ -199,33 +198,22 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
     return seg_label.reshape((N1, N2))
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--file", help="file path")
-    parser.add_argument("-ws", "--window_size", help="window size for local special histogram")
-    parser.add_argument("-segn", "--number_segments",
-                        help="number of segment. if set to 0, the number will be automatically estimated")
-    parser.add_argument("-omega", "--error_treshold",
-                        help="error threshod for estimating segment number. need to adjust for different filter bank.")
-    parser.add_argument("-nonneg_constraint", "--nonneg_constraint", help="whether apply negative matrix factorization")
-    parser.add_argument("-save_dir", "--save_dir", help="path with the folder to save the file")
-    parser.add_argument("-save_file_name", "--save_file_name",
-                        help="file name with the extension to save the final result")
-    args = parser.parse_args()
+def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_constraint: bool, save_dir: str,
+                save_file_name: str) -> np.ndarray:
+    """
+    Function to run the fct and segment an image
 
-    file_path = args.file
-    ws = int(args.window_size)
-    n_segments = int(args.number_segments)
-    omega = float(args.error_treshold)
-    nonneg_constraint = bool(args.nonneg_constraint)
-    save_dir = args.save_dir
-    save_file_name = args.save_file_name
-
+    :param img:
+    :param ws:
+    :param n_segments:
+    :param omega:
+    :param nonneg_constraint:
+    :param save_dir:
+    :param save_file_name:
+    :return:
+    """
     time0 = time.time()
     # an example of using Fseg
-    # read image
-    img = cv2.imread(file_path, 0)
-    file_name = file_path.split("/")[-1]
 
     # define filter bank and apply to image. for color images, convert rgb to grey scale and then apply filter bank
     filter_list = [('log', .5, [3, 3]), ('log', 1, [5, 5]),
@@ -242,10 +230,42 @@ if __name__ == '__main__':
 
     # run segmentation. try different window size, with and without nonneg constraints
     # seg_out = Fseg(Ig, ws=25, segn=0, omega=.045, nonneg_constraint=True) -> This's a good parameter to run
-    seg_out = Fseg(Ig, ws=ws, segn=n_segments, omega=omega, nonneg_constraint=nonneg_constraint)
+    seg_out = _Fseg(Ig, ws=ws, segn=n_segments, omega=omega, nonneg_constraint=nonneg_constraint)
 
     print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
     title = "Plot using ws={}, segn={}, omega={} and nonneg_flag={}".format(ws, n_segments, omega, nonneg_constraint)
 
     # show results
     overlay(img, seg_out, 0.6, cmap="viridis", save_fig=save_dir + save_file_name, save_dir=save_dir, plot_title=title)
+    return seg_out
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--file", type=str, help="file path")
+    parser.add_argument("-shape_size", "--shape_size", nargs="+", type=int, help="shape size of the image")
+    parser.add_argument("-dtype", "--dtype", nargs="?", type=str, help="image dtype")
+    parser.add_argument("-ws", "--window_size", type=int, help="window size for local special histogram")
+    parser.add_argument("-segn", "--number_segments", type=int,
+                        help="number of segment. if set to 0, the number will be automatically estimated")
+    parser.add_argument("-omega", "--error_treshold", type=float,
+                        help="error threshod for estimating segment number. need to adjust for different filter bank.")
+    parser.add_argument("-nonneg_constraint", "--nonneg_constraint", type=bool,
+                        help="whether apply negative matrix factorization")
+    parser.add_argument("-save_dir", "--save_dir", type=str, help="path with the folder to save the file")
+    parser.add_argument("-save_file_name", "--save_file_name", type=str,
+                        help="file name with the extension to save the final result")
+    args = parser.parse_args()
+
+    file_path = args.file
+    img_shape = tuple(args.shape_size)
+    dtype = args.dtype
+    ws = args.window_size
+    n_segments = args.number_segments
+    omega = args.error_treshold
+    nonneg_constraint = args.nonneg_constraint
+    save_dir = args.save_dir
+    save_file_name = args.save_file_name
+
+    img = io_from_prompt(file_path, img_shape, dtype)
+    _ = run_fct_seg(img, ws, n_segments, omega, nonneg_constraint, save_dir, save_file_name)

@@ -1,8 +1,38 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import cv2
 
 from scipy import ndimage
+
+
+def io_from_prompt(img_path: str, shape_size: tuple[int, int, int], dtype: str) -> np.ndarray:
+    """
+
+    :param img_path:
+    :param shape_size:
+    :param dtype:
+    :return:
+    """
+
+    if (img_path.split(".")[-1] == "raw"):
+        if (dtype):
+            img = np.fromfile(img_path, dtype=dtype)
+        else:
+            img = np.fromfile(img_path)
+        if (len(shape_size) == 3):
+            img = np.resize(img, shape_size)
+        else:
+            img = np.resize(img, (shape_size[0], shape_size[1]))
+
+    else:
+        if(dtype):
+            img = cv2.imread(img_path, 0).astype(dtype)
+
+        else:
+            img = cv2.imread(img_path, 0)
+
+    return img
 
 
 def log_filter(sgm, fsize):
