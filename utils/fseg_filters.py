@@ -8,11 +8,11 @@ from scipy import ndimage
 
 def io_from_prompt(img_path: str, shape_size: tuple[int, int, int] or tuple[int, int], dtype: str) -> np.ndarray:
     """
-
-    :param img_path:
-    :param shape_size:
-    :param dtype:
-    :return:
+    io function to read png, tiff and raw files
+    :param img_path: image string path
+    :param shape_size: optional parameter, this represents the shape to read if the image is .raw
+    :param dtype: string that represets the image dtype
+    :return: returns an array that represents the image
     """
 
     if (img_path.split(".")[-1] == "raw"):
