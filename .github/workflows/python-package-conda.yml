@@ -38,4 +38,4 @@ jobs:
 
     - name: Running a example img
       run: |
-        python3 FctSeg_seed.py -f ".github/Images/house.png" -ws 25 -s 0  -save_dir "" -save_file_name ""
+        python3 FctSeg_seed.py -f "/.github/Images/house.png" -ws 25 -s 0  -save_dir "" -save_file_name ""
