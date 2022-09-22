@@ -39,13 +39,8 @@ jobs:
       - name: Doing some cd
         run: |
           cd .github/
-          pwd
+          ls
 
       - name: Running a example Image
         run: |
-          pwd
-          ls
-          cd .github/
-          pwd
-          ls
           python3 FctSeg_seed.py -f "" -ws 25 -s 0  -save_dir "" -save_file_name ""
