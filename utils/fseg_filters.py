@@ -26,7 +26,7 @@ def io_from_prompt(img_path: str, shape_size: tuple[int, int, int] or tuple[int,
             img = np.resize(img, (shape_size[0], shape_size[1]))
 
     else:
-        if(dtype):
+        if (dtype):
             img = cv2.imread(img_path, 0).astype(dtype)
 
         else:
@@ -35,7 +35,7 @@ def io_from_prompt(img_path: str, shape_size: tuple[int, int, int] or tuple[int,
     return img
 
 
-def log_filter(sgm, fsize):
+def log_filter(sgm: float, fsize: list[int, int]) -> np.ndarray:
     """
     LoG filter
     :param sgm: sigma in Gaussian
@@ -77,7 +77,7 @@ def gabor_filter(sgm, theta):
     return out - np.mean(out)
 
 
-def image_filtering(img, filter_list):
+def image_filtering(img: np.ndarray, filter_list: list[tuple[str, float, float or tuple[int, int]]]) -> np.ndarray:
     sub_img = []
     for filter in filter_list:
         assert (filter[0] == 'log') | (filter[0] == 'gabor'), 'Undefined filter name. '
@@ -94,7 +94,7 @@ def image_filtering(img, filter_list):
     return np.float32(np.stack(sub_img, axis=2))
 
 
-def overlay(img1, img2, alpha, **kwargs):
+def overlay(img1: np.ndarray, img2: np.ndarray, alpha: float, **kwargs: any) -> None:
     """
         Plots an overlay of an image and its segmentation using pyplot.imshow with useful parameters.
     Args:
