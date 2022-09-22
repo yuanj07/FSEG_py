@@ -38,7 +38,7 @@ jobs:
 
       - name: Doing some cd
         run: |
-          cd .github/
+          cd .github/workflows
           ls
 
       - name: Running a example Image
