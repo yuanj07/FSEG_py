@@ -76,7 +76,7 @@ def SHcomp(Ig, ws, BinN=11):
 def Fseg(Ig, ws, seeds):
     """
     Factorization based segmentation
-    :param Ig: a n-band image
+    :param Ig: an n-band image
     :param ws: window size for local special histogram
     :param seeds: list of coordinates [row, column] for seeds. each seed represent one type of texture
     :param omega: error threshod for estimating segment number. need to adjust for different filter bank.

@@ -8,11 +8,16 @@ from scipy import ndimage
 
 def io_from_prompt(img_path: str, shape_size: tuple[int, int, int] or tuple[int, int], dtype: str) -> np.ndarray:
     """
-    io function to read png, tiff and raw files
-    :param img_path: image string path
-    :param shape_size: optional parameter, this represents the shape to read if the image is .raw
-    :param dtype: string that represets the image dtype
-    :return: returns an array that represents the image
+    io function to read png, jpg, tiff and raw files
+
+    Args:
+        img_path (str): image string path
+        shape_size (tuple[int, int, int] or tuple[int, int]): optional parameter, this represents the shape to read if the image is .raw
+        dtype (str): string that represets the image dtype
+
+    Returns:
+        (np.ndarray): returns an array that represents the image
+
     """
 
     if (img_path.split(".")[-1] == "raw"):
@@ -37,10 +42,15 @@ def io_from_prompt(img_path: str, shape_size: tuple[int, int, int] or tuple[int,
 
 def log_filter(sgm: float, fsize: list[int, int]) -> np.ndarray:
     """
-    LoG filter
-    :param sgm: sigma in Gaussian
-    :param fsize: filter size, [h, w]
-    :return: LoG filter
+    Log filter function
+
+    Args:
+        sgm (float): sigma in Gaussian
+        fsize (list[int, int]): filter size, [h, w]
+
+    Returns:
+        (np.ndarray): log filter vector
+
     """
     wins_x = int(fsize[1] / 2)
     wins_y = int(fsize[0] / 2)
@@ -55,12 +65,17 @@ def log_filter(sgm: float, fsize: list[int, int]) -> np.ndarray:
     return out - np.mean(out)
 
 
-def gabor_filter(sgm, theta):
+def gabor_filter(sgm: float, theta: float) -> np.ndarray:
     """
-    Gabor filter
-    :param sgm: sigma in Gaussian
-    :param theta: direction
-    :return: gabor filter
+    Gabor filter function
+
+    Args:
+        sgm (float): sigma in Gaussian
+        theta (float): direction
+
+    Returns:
+        (np.ndarray): gabor filter vector
+
     """
     phs = 0
     gamma = 1
@@ -77,7 +92,22 @@ def gabor_filter(sgm, theta):
     return out - np.mean(out)
 
 
-def image_filtering(img: np.ndarray, filter_list: list[tuple[str, float, float or tuple[int, int]]]) -> np.ndarray:
+def image_filtering(img: np.ndarray, filter_list: list[tuple[str, float, float] or tuple[int, int]]) -> np.ndarray:
+    """
+    function that filters an image and returns the feature matrix
+
+    Notes:
+        This function is now working only for 'gabor' and 'log' filters\n
+        also, the returned feature matrix is always a float32 type
+
+    Args:
+        img (np.ndarray): input image
+        filter_list (list[tuple]): a list that contains the filter bank to apply on the image
+
+    Returns:
+        (np.ndarray): returns a numpy array with the selected features based on the filter bank
+
+    """
     sub_img = []
     for filter in filter_list:
         assert (filter[0] == 'log') | (filter[0] == 'gabor'), 'Undefined filter name. '

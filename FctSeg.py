@@ -12,16 +12,19 @@ from numpy import linalg as LA
 from utils.fseg_filters import image_filtering, overlay, io_from_prompt
 
 
-def _SHcomp(Ig, ws, BinN=11):
+def _SHcomp(Ig: np.ndarray, ws: int, BinN: int = 11) -> np.ndarray:
     """
-    Compute local spectral histogram using integral histograms
-    :param Ig: a n-band image
-    :param ws: half window size
-    :param BinN: number of bins of histograms
-    :return: local spectral histogram at each pixel
+    Function that compute the local spectral histogram using integral histograms
+    Args:
+        Ig (np.ndarray): a n-band image
+        ws (int): half window size
+        BinN (np.ndarray): number of bins of histograms
+
+    Returns:
+        (np.ndarray): local spectral histogram at each pixel
+
     """
     h, w, bn = Ig.shape
-    ws = int(ws)
 
     # quantize values at each pixel into bin ID
     for i in range(bn):
@@ -73,10 +76,20 @@ def _SHcomp(Ig, ws, BinN=11):
     return sh_mtx
 
 
-def _SHedgeness(sh_mtx, ws):
+def _SHedgeness(sh_mtx: np.ndarray, ws: int) -> np.ndarray:
+    """
+    Function that create the edge map
+
+    Args:
+        sh_mtx (np.ndarray): vector with the project features onto the subspace
+        ws (int): window size for the feature maps
+
+    Returns:
+        (np.ndarray): returns a numpy array that contains all the edges on the image
+
+    """
     h, w, _ = sh_mtx.shape
     edge_map = np.ones((h, w)) * -1
-    ws = int(ws)
     for i in range(ws, h - ws - 1):
         for j in range(ws, w - ws - 1):
             edge_map[i, j] = np.sqrt(np.sum((sh_mtx[i - ws, j, :] - sh_mtx[i + ws, j, :]) ** 2)
@@ -84,20 +97,25 @@ def _SHedgeness(sh_mtx, ws):
     return edge_map
 
 
-def _Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
+def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: bool = True) -> np.ndarray:
     """
-    Factorization based segmentation
-    :param Ig: a n-band image
-    :param ws: window size for local special histogram
-    :param segn: number of segment. if set to 0, the number will be automatically estimated
-    :param omega: error threshod for estimating segment number. need to adjust for different filter bank.
-    :param nonneg_constraint: whether apply negative matrix factorization
-    :return: segmentation label map
-    """
+    Factorization based segmentation function
 
+    Args:
+        Ig (np.ndarray): a n-band image
+        ws (int): window size for local special histogram
+        segn (int): number of segment. if set to 0, the number will be automatically estimated
+        omega (float): error threshod for estimating segment number. need to adjust for different filter bank.
+        nonneg_constraint (bool): whether apply negative matrix factorization
+
+    Returns:
+        (np.ndarray): retunrs the label mask as a numpy array
+
+    """
     N1, N2, bn = Ig.shape
 
-    ws = ws / 2
+    # TODO : Maybe i'll change int to //2 operation
+    ws = int(ws / 2)
     sh_mtx = _SHcomp(Ig, ws)
     sh_dim = sh_mtx.shape[2]
 
@@ -117,6 +135,7 @@ def _Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
         print('Estimated segment number: %d' % segn)
 
         if segn <= 1:
+            # TODO : I can change were for a better warning
             segn = 2
             print('Warning: Segment number is set to 2. May need to reduce omega for better segment number estimation.')
 
@@ -203,14 +222,17 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
     """
     Function to run the fct and segment an image
 
-    :param img:
-    :param ws:
-    :param n_segments:
-    :param omega:
-    :param nonneg_constraint:
-    :param save_dir:
-    :param save_file_name:
-    :return:
+    Args:
+        img (np.ndarray): image array
+        ws (int): window size to use as local special histogram
+        n_segments (int): number of segment. if set to 0, the number will be automatically estimated
+        omega (float): error threshod for estimating segment number. need to adjust for different filter bank.
+        nonneg_constraint (bool): flag that if True, will apply the negative matrix factorization
+        save_dir (str): string to save into that directory
+        save_file_name (str): string to save the file name
+
+    Returns:
+
     """
     time0 = time.time()
     # an example of using Fseg
@@ -241,6 +263,9 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
 
 
 if __name__ == '__main__':
+    """
+    Main function method to run via terminal
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", type=str, help="file path")
     parser.add_argument("-shape_size", "--shape_size", nargs="+", type=int, help="shape size of the image")
