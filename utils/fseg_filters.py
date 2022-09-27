@@ -2,8 +2,28 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import cv2
+import colorama
 
 from scipy import ndimage
+
+
+def progress_bar(progress: int, total: int, color=colorama.Fore.YELLOW) -> None:
+    """
+    https://www.youtube.com/watch?v=x1eaT88vJUA&t=140s&ab_channel=NeuralNine
+    Args:
+        progress:
+        total:
+        color:
+
+    Returns:
+
+    """
+    percent = 100 * (progress / total)
+    bar = "░" * int(percent) + "-" * (100 - int(percent))
+    print(color + f"\r|{bar}| {percent:.2f}%", end="\r")
+    if (progress == total):
+        print(colorama.Fore.GREEN + f"\r|{bar}| {percent:.2f}%", end="\r")
+        print(colorama.Fore.RESET)
 
 
 def io_from_prompt(img_path: str, shape_size: tuple[int, int, int] or tuple[int, int], dtype: str) -> np.ndarray:

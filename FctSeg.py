@@ -9,7 +9,7 @@ import argparse
 
 from scipy import linalg as LAsci
 from numpy import linalg as LA
-from utils.fseg_filters import image_filtering, overlay, io_from_prompt
+from utils.fseg_filters import *
 
 
 def _SHcomp(Ig: np.ndarray, ws: int, BinN: int = 11) -> np.ndarray:
@@ -114,8 +114,7 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
     """
     N1, N2, bn = Ig.shape
 
-    # TODO : Maybe i'll change int to //2 operation
-    ws = int(ws / 2)
+    ws //= 2
     sh_mtx = _SHcomp(Ig, ws)
     sh_dim = sh_mtx.shape[2]
 
@@ -235,7 +234,26 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
 
     """
     time0 = time.time()
+    # TODO : Need to implement a efficient way to show a loading bar
     # an example of using Fseg
+    # z = np.ones(shape=(3, 2))
+    # x = 1
+    # y = 0
+    # actual_inter = (x * z.shape[1]) + (y + 1)
+    # end_inter = (z.shape[0] * z.shape[1]) - actual_inter + 1
+    # actual_inter = 0
+    # progress_bar(actual_inter, end_inter)
+    # for i in range(x, z.shape[0]):
+    #     for j in range(y, z.shape[1]):
+    #         progress_bar(actual_inter + 1, end_inter)
+    #         actual_inter += 1
+    # This is just a test for the loading bar
+    # numbers = [x * 5 for x in range(2000, 3000)]
+    # result = []
+    # progress_bar(0, len(numbers))
+    # for i, x in enumerate(numbers):
+    #     result.append(math.factorial(x))
+    #     progress_bar(i + 1, len(numbers))
 
     # define filter bank and apply to image. for color images, convert rgb to grey scale and then apply filter bank
     filter_list = [('log', .5, [3, 3]), ('log', 1, [5, 5]),
