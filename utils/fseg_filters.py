@@ -196,3 +196,19 @@ def overlay(img1: np.ndarray, img2: np.ndarray, alpha: float, **kwargs: any) -> 
         plt.savefig(save_fig_name)
 
     plt.show()
+
+
+def separte_masks(img_mask: np.ndarray, find_label: int) -> np.ndarray:
+    """
+    Function that filters a label mask just to find a specific filter
+
+    Args:
+        img_mask (np.ndarray): label image
+        find_label (np.ndarray): integer that represents the label to filter in the image
+
+    Returns:
+        (np.ndarray): returns a binary mask filterd only with this choosen label
+
+    """
+    new_mask = np.where(img_mask == find_label, 1, 0)
+    return new_mask
