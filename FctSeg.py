@@ -97,7 +97,9 @@ def _SHedgeness(sh_mtx: np.ndarray, ws: int) -> np.ndarray:
     return edge_map
 
 
-def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: bool = True) -> np.ndarray:
+def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: bool = True, max_iteration_msq: int = 50,
+          max_iteration_convergence: int = 50, max_error: float = 0.001, max_convergence_error: float = 0.00001,
+          epsilon: float = 0.01) -> np.ndarray:
     """
     Factorization based segmentation function
 
@@ -107,6 +109,11 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
         segn (int): number of segment. if set to 0, the number will be automatically estimated
         omega (float): error threshod for estimating segment number. need to adjust for different filter bank.
         nonneg_constraint (bool): whether apply negative matrix factorization
+        max_iteration_msq (int): max number of iterations for LSE
+        max_iteration_convergence (int): max numver of interation in the convergence condition
+        max_error (float): max error value to stop the LSE
+        max_convergence_error (float): max error value to stop the convergence
+        epsilon (float): value used in the equation Y = ZB + epsilon (see the paper for more details)
 
     Returns:
         (np.ndarray): retunrs the label mask as a numpy array
@@ -170,7 +177,11 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
     D_cen2all = np.zeros((segn, Y_woedge.shape[0]), dtype=np.float32)
     cls_cen_new = np.zeros((segn, dimn), dtype=np.float32)
     is_converging = 1
-    while is_converging:
+    j = 0
+    custom_print("making the convergence condition with parameters",
+                 "max_iteration_convergence = {}, max_convergence_error = {}".format(max_iteration_convergence,
+                                                                                     max_convergence_error))
+    while is_converging and j < max_iteration_convergence:
         for i in range(segn):
             D_cen2all[i, :] = np.sum((cls_cen[i, :] - Y_woedge) ** 2, axis=1)
 
@@ -179,10 +190,14 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
         for i in range(segn):
             cls_cen_new[i, :] = np.mean(Y_woedge[cls_id == i, :], axis=0)
 
-        if np.max((cls_cen_new - cls_cen) ** 2) < .00001:
+        diff_norm = np.max((cls_cen_new - cls_cen) ** 2)
+        if diff_norm < max_convergence_error:
             is_converging = 0
         else:
             cls_cen = cls_cen_new * 1.
+        print("iteration = {} | diference norm = {} | max_error for convergence criteria = {}".format(j, diff_norm,
+                                                                                                      max_convergence_error))
+        j += 1
     cls_cen_new = cls_cen_new.T
 
     ZZTinv = LAsci.inv(np.dot(cls_cen_new.T, cls_cen_new))
@@ -195,17 +210,19 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
         dnorm0 = 1
 
         h = Beta * 1.
-        for i in range(100):
-            tmp, _, _, _ = LA.lstsq(np.dot(w0.T, w0) + np.eye(segn) * .01, np.dot(w0.T, Y.T))
+        custom_print("starting the LSE with",
+                     "max_iteration = {} and max_error = {}".format(max_iteration_msq, max_error))
+        for i in range(max_iteration_msq):
+            tmp, _, _, _ = LA.lstsq(np.dot(w0.T, w0) + np.eye(segn) * epsilon, np.dot(w0.T, Y.T))
             h = np.maximum(0, tmp)
-            tmp, _, _, _ = LA.lstsq(np.dot(h, h.T) + np.eye(segn) * .01, np.dot(h, Y))
+            tmp, _, _, _ = LA.lstsq(np.dot(h, h.T) + np.eye(segn) * epsilon, np.dot(h, Y))
             w = np.maximum(0, tmp)
             w = w.T * 1.
 
             d = Y.T - np.dot(w, h)
             dnorm = np.sqrt(np.mean(d * d))
-            print(i, np.abs(dnorm - dnorm0), dnorm)
-            if np.abs(dnorm - dnorm0) < .1:
+            print("iteration = {} | diference norm : {} | actual norm : {}".format(i, np.abs(dnorm - dnorm0), dnorm))
+            if np.abs(dnorm - dnorm0) < max_error:
                 break
 
             w0 = w * 1.
@@ -234,26 +251,6 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
 
     """
     time0 = time.time()
-    # TODO : Need to implement a efficient way to show a loading bar
-    # an example of using Fseg
-    # z = np.ones(shape=(3, 2))
-    # x = 1
-    # y = 0
-    # actual_inter = (x * z.shape[1]) + (y + 1)
-    # end_inter = (z.shape[0] * z.shape[1]) - actual_inter + 1
-    # actual_inter = 0
-    # progress_bar(actual_inter, end_inter)
-    # for i in range(x, z.shape[0]):
-    #     for j in range(y, z.shape[1]):
-    #         progress_bar(actual_inter + 1, end_inter)
-    #         actual_inter += 1
-    # This is just a test for the loading bar
-    # numbers = [x * 5 for x in range(2000, 3000)]
-    # result = []
-    # progress_bar(0, len(numbers))
-    # for i, x in enumerate(numbers):
-    #     result.append(math.factorial(x))
-    #     progress_bar(i + 1, len(numbers))
 
     # define filter bank and apply to image. for color images, convert rgb to grey scale and then apply filter bank
     filter_list = [('log', .5, [3, 3]), ('log', 1, [5, 5]),

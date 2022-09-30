@@ -26,6 +26,30 @@ def progress_bar(progress: int, total: int, color=colorama.Fore.YELLOW) -> None:
         print(colorama.Fore.RESET)
 
 
+def custom_print(msg: str, payload: any) -> None:
+    """
+    Function that realize a print in the formact
+    \====================================
+
+    message1 : message2
+
+    \====================================
+
+    where message1 and message2 are the message values
+
+    Args:
+        msg (str): a string that contains the first messagem
+        payload (any): a custom payload to print as message2
+
+    Returns:
+        None
+
+    """
+    print("\n" + 100 * "-")
+    print("{} : {}".format(msg, payload))
+    print(100 * "-" + "\n")
+
+
 def io_from_prompt(img_path: str, shape_size: tuple[int, int, int] or tuple[int, int], dtype: str) -> np.ndarray:
     """
     io function to read png, jpg, tiff and raw files
