@@ -100,10 +100,10 @@ def _SHedgeness(sh_mtx: np.ndarray, ws: int) -> np.ndarray:
 
 def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: bool = True, max_iteration_mse: int = 50,
           max_iteration_convergence: int = 50, max_error: float = 0.001, max_convergence_error: float = 0.00001,
-          epsilon: float = 0.01) -> np.ndarray:
+          epsilon: float = 0.01, threshold_lim: float = 0.4) -> np.ndarray:
     """
     Factorization based segmentation function
-
+    # TODO : Need to document this function later
     Args:
         Ig (np.ndarray): a n-band image
         ws (int): window size for local special histogram
@@ -115,6 +115,7 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
         max_error (float): max error value to stop the LSE
         max_convergence_error (float): max error value to stop the convergence
         epsilon (float): value used in the equation Y = ZB + epsilon (see the paper for more details)
+        threshold_lim (float):
 
     Returns:
         (np.ndarray): retunrs the label mask as a numpy array
@@ -156,7 +157,7 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
 
     edge_map_flatten = edge_map.flatten()
 
-    Y_woedge = Y1[(edge_map_flatten >= 0) & (edge_map_flatten <= np.max(edge_map) * 0.4), :]
+    Y_woedge = Y1[(edge_map_flatten >= 0) & (edge_map_flatten <= np.max(edge_map) * threshold_lim), :]
 
     # find representative features using clustering
     cls_cen = np.zeros((segn, dimn), dtype=np.float32)
@@ -237,9 +238,10 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
 def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_constraint: bool, save_dir: str,
                 save_file_name: str, random_bank_filters: bool = False, max_iteration_mse: int = 50,
                 max_iteration_convergence: int = 50, max_error: float = 0.001, max_convergence_error: float = 0.00001,
-                epsilon: float = 0.01) -> np.ndarray:
+                epsilon: float = 0.01, save_params: bool = False, threshold_lim: float = 0.4) -> np.ndarray:
     """
     Function to run the fct and segment an image
+    #TODO : Need to document this function later
 
     Args:
         img (np.ndarray): image array
@@ -254,6 +256,8 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
         max_error (float):
         max_convergence_error (float):
         epsilon (float):
+        save_params (bool):
+        threshold_lim (float):
 
     Returns:
 
@@ -290,13 +294,35 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
     # seg_out = Fseg(Ig, ws=25, segn=0, omega=.045, nonneg_constraint=True) -> This's a good parameter to run
     seg_out = _Fseg(Ig, ws=ws, segn=n_segments, omega=omega, nonneg_constraint=nonneg_constraint,
                     max_iteration_mse=max_iteration_mse, max_iteration_convergence=max_iteration_convergence,
-                    max_error=max_error, max_convergence_error=max_convergence_error, epsilon=epsilon)
+                    max_error=max_error, max_convergence_error=max_convergence_error, epsilon=epsilon,
+                    threshold_lim=threshold_lim)
 
-    print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
+    total_time = time.time() - time0
+    print('FSEG runs in %0.2f seconds. ' % total_time)
     title = "Plot using ws={}, segn={}, omega={} and nonneg_flag={}".format(ws, n_segments, omega, nonneg_constraint)
 
     # show results
     overlay(img, seg_out, 0.6, cmap="viridis", save_fig=save_dir + save_file_name, save_dir=save_dir, plot_title=title)
+
+    if (save_params):
+        with open(save_dir + save_file_name.replace(".png", ".txt"), "w") as f:
+            f.write("used params in this run that took {:.2f} seconds to run\n".format(total_time))
+            f.write("ws : {}\n".format(ws))
+            f.write("n_segments : {}\n".format(n_segments))
+            f.write("omega : {}\n".format(omega))
+            f.write("nonneg_constraint : {}\n".format(nonneg_constraint))
+            f.write("save_dir : {}\n".format(save_dir))
+            f.write("save_file_name : {}\n".format(save_file_name))
+            f.write("random_bank_filters : {}\n".format(random_bank_filters))
+            f.write("max_iteration_mse : {}\n".format(max_iteration_mse))
+            f.write("max_iteration_convergence : {}\n".format(max_iteration_convergence))
+            f.write("max_error : {}\n".format(max_error))
+            f.write("max_convergence_error : {}\n".format(max_convergence_error))
+            f.write("epsilon : {}\n".format(epsilon))
+            f.write("save_params : {}\n".format(save_params))
+
+            f.close()
+
     return seg_out
 
 
@@ -333,6 +359,10 @@ if __name__ == '__main__':
                              "the paper for more details)")
     parser.add_argument("-random_filter", "--random_filter", nargs="?", type=bool,
                         help="opcional parameter to set a random bank of filters")
+    parser.add_argument("-save_params", "--save_params", nargs="?", type=bool,
+                        help="opcional parameter that save all the parameters into a .txt file")
+    parser.add_argument("-threshold_lim", "--threshold_lim", nargs="?", type=float,
+                        help="opcional parameter to use as the Y threshold_min")
     args = parser.parse_args()
 
     file_path = args.file
@@ -350,6 +380,11 @@ if __name__ == '__main__':
     max_convergence_error = 0.00001 if args.max_convergence_error is None else args.max_convergence_error
     epsilon = 0.01 if args.epsilon is None else args.epsilon
     random_filter = False if args.random_filter is None else args.random_filter
+    save_params = False if args.save_params is None else args.save_params
+    threshold_lim = 0.4 if args.threshold_lim is None else args.threshold_lim
 
     img = io_from_prompt(file_path, img_shape, dtype)
-    _ = run_fct_seg(img, ws, n_segments, omega, nonneg_constraint, save_dir, save_file_name)
+    _ = run_fct_seg(img, ws, n_segments, omega, nonneg_constraint, save_dir, save_file_name,
+                    random_bank_filters=random_filter, max_iteration_mse=max_iter_mse,
+                    max_iteration_convergence=max_iter_conver, max_error=max_error,
+                    max_convergence_error=max_convergence_error, epsilon=epsilon, save_params=save_params)
