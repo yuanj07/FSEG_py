@@ -10,6 +10,7 @@ import argparse
 from scipy import linalg as LAsci
 from numpy import linalg as LA
 from utils.fseg_filters import *
+from random import shuffle
 
 
 def _SHcomp(Ig: np.ndarray, ws: int, BinN: int = 11) -> np.ndarray:
@@ -97,16 +98,24 @@ def _SHedgeness(sh_mtx: np.ndarray, ws: int) -> np.ndarray:
     return edge_map
 
 
-def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: bool = True) -> np.ndarray:
+def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: bool = True, max_iteration_mse: int = 50,
+          max_iteration_convergence: int = 50, max_error: float = 0.001, max_convergence_error: float = 0.00001,
+          epsilon: float = 0.01, threshold_lim: float = 0.4) -> np.ndarray:
     """
     Factorization based segmentation function
-
+    # TODO : Need to document this function later
     Args:
         Ig (np.ndarray): a n-band image
         ws (int): window size for local special histogram
         segn (int): number of segment. if set to 0, the number will be automatically estimated
         omega (float): error threshod for estimating segment number. need to adjust for different filter bank.
         nonneg_constraint (bool): whether apply negative matrix factorization
+        max_iteration_mse (int): max number of iterations for LSE
+        max_iteration_convergence (int): max number of interation in the convergence condition
+        max_error (float): max error value to stop the LSE
+        max_convergence_error (float): max error value to stop the convergence
+        epsilon (float): value used in the equation Y = ZB + epsilon (see the paper for more details)
+        threshold_lim (float):
 
     Returns:
         (np.ndarray): retunrs the label mask as a numpy array
@@ -148,7 +157,7 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
 
     edge_map_flatten = edge_map.flatten()
 
-    Y_woedge = Y1[(edge_map_flatten >= 0) & (edge_map_flatten <= np.max(edge_map) * 0.4), :]
+    Y_woedge = Y1[(edge_map_flatten >= 0) & (edge_map_flatten <= np.max(edge_map) * threshold_lim), :]
 
     # find representative features using clustering
     cls_cen = np.zeros((segn, dimn), dtype=np.float32)
@@ -170,7 +179,11 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
     D_cen2all = np.zeros((segn, Y_woedge.shape[0]), dtype=np.float32)
     cls_cen_new = np.zeros((segn, dimn), dtype=np.float32)
     is_converging = 1
-    while is_converging:
+    j = 0
+    custom_print("making the convergence condition with parameters",
+                 "max_iteration_convergence = {}, max_convergence_error = {}".format(max_iteration_convergence,
+                                                                                     max_convergence_error))
+    while is_converging and j < max_iteration_convergence:
         for i in range(segn):
             D_cen2all[i, :] = np.sum((cls_cen[i, :] - Y_woedge) ** 2, axis=1)
 
@@ -179,10 +192,14 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
         for i in range(segn):
             cls_cen_new[i, :] = np.mean(Y_woedge[cls_id == i, :], axis=0)
 
-        if np.max((cls_cen_new - cls_cen) ** 2) < .00001:
+        diff_norm = np.max((cls_cen_new - cls_cen) ** 2)
+        if diff_norm < max_convergence_error:
             is_converging = 0
         else:
             cls_cen = cls_cen_new * 1.
+        print("iteration = {} | diference norm = {} | max_error for convergence criteria = {}".format(j, diff_norm,
+                                                                                                      max_convergence_error))
+        j += 1
     cls_cen_new = cls_cen_new.T
 
     ZZTinv = LAsci.inv(np.dot(cls_cen_new.T, cls_cen_new))
@@ -195,17 +212,19 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
         dnorm0 = 1
 
         h = Beta * 1.
-        for i in range(100):
-            tmp, _, _, _ = LA.lstsq(np.dot(w0.T, w0) + np.eye(segn) * .01, np.dot(w0.T, Y.T))
+        custom_print("starting the LSE with",
+                     "max_iteration = {} and max_error = {}".format(max_iteration_mse, max_error))
+        for i in range(max_iteration_mse):
+            tmp, _, _, _ = LA.lstsq(np.dot(w0.T, w0) + np.eye(segn) * epsilon, np.dot(w0.T, Y.T))
             h = np.maximum(0, tmp)
-            tmp, _, _, _ = LA.lstsq(np.dot(h, h.T) + np.eye(segn) * .01, np.dot(h, Y))
+            tmp, _, _, _ = LA.lstsq(np.dot(h, h.T) + np.eye(segn) * epsilon, np.dot(h, Y))
             w = np.maximum(0, tmp)
             w = w.T * 1.
 
             d = Y.T - np.dot(w, h)
             dnorm = np.sqrt(np.mean(d * d))
-            print(i, np.abs(dnorm - dnorm0), dnorm)
-            if np.abs(dnorm - dnorm0) < .1:
+            print("iteration = {} | actual error : {} | minimal error : {}".format(i, np.abs(dnorm - dnorm0), dnorm))
+            if np.abs(dnorm - dnorm0) < max_error:
                 break
 
             w0 = w * 1.
@@ -217,9 +236,12 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
 
 
 def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_constraint: bool, save_dir: str,
-                save_file_name: str) -> np.ndarray:
+                save_file_name: str, random_bank_filters: bool = False, max_iteration_mse: int = 50,
+                max_iteration_convergence: int = 50, max_error: float = 0.001, max_convergence_error: float = 0.00001,
+                epsilon: float = 0.01, save_params: bool = False, threshold_lim: float = 0.4) -> np.ndarray:
     """
     Function to run the fct and segment an image
+    #TODO : Need to document this function later
 
     Args:
         img (np.ndarray): image array
@@ -229,39 +251,39 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
         nonneg_constraint (bool): flag that if True, will apply the negative matrix factorization
         save_dir (str): string to save into that directory
         save_file_name (str): string to save the file name
+        max_iteration_mse (int):
+        max_iteration_convergence (int):
+        max_error (float):
+        max_convergence_error (float):
+        epsilon (float):
+        save_params (bool):
+        threshold_lim (float):
 
     Returns:
 
     """
     time0 = time.time()
-    # TODO : Need to implement a efficient way to show a loading bar
-    # an example of using Fseg
-    # z = np.ones(shape=(3, 2))
-    # x = 1
-    # y = 0
-    # actual_inter = (x * z.shape[1]) + (y + 1)
-    # end_inter = (z.shape[0] * z.shape[1]) - actual_inter + 1
-    # actual_inter = 0
-    # progress_bar(actual_inter, end_inter)
-    # for i in range(x, z.shape[0]):
-    #     for j in range(y, z.shape[1]):
-    #         progress_bar(actual_inter + 1, end_inter)
-    #         actual_inter += 1
-    # This is just a test for the loading bar
-    # numbers = [x * 5 for x in range(2000, 3000)]
-    # result = []
-    # progress_bar(0, len(numbers))
-    # for i, x in enumerate(numbers):
-    #     result.append(math.factorial(x))
-    #     progress_bar(i + 1, len(numbers))
 
     # define filter bank and apply to image. for color images, convert rgb to grey scale and then apply filter bank
-    filter_list = [('log', .5, [3, 3]), ('log', 1, [5, 5]),
+    # this's the original filter
+    # filter_list = [('log', .5, [3, 3]), ('log', 1, [5, 5]),
+    #                ('gabor', 1.5, 0), ('gabor', 1.5, np.pi / 2), ('gabor', 1.5, np.pi / 4),
+    #                ('gabor', 1.5, -np.pi / 4),
+    #                ('gabor', 2.5, 0), ('gabor', 2.5, np.pi / 2), ('gabor', 2.5, np.pi / 4),
+    #                ('gabor', 2.5, -np.pi / 4)
+    #                ]
+
+    filter_list = [('log', .4, [3, 3]), ('log', .45, [5, 5]),
+                   ('log', .5, [3, 3]), ('log', 1, [5, 5]),
+                   ('log', 1.5, [7, 7]), ('log', 2.0, [9, 9]),
                    ('gabor', 1.5, 0), ('gabor', 1.5, np.pi / 2), ('gabor', 1.5, np.pi / 4),
                    ('gabor', 1.5, -np.pi / 4),
                    ('gabor', 2.5, 0), ('gabor', 2.5, np.pi / 2), ('gabor', 2.5, np.pi / 4),
                    ('gabor', 2.5, -np.pi / 4)
                    ]
+
+    if (random_bank_filters):
+        shuffle(filter_list)
 
     filter_out = image_filtering(img, filter_list=filter_list)
 
@@ -270,13 +292,37 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
 
     # run segmentation. try different window size, with and without nonneg constraints
     # seg_out = Fseg(Ig, ws=25, segn=0, omega=.045, nonneg_constraint=True) -> This's a good parameter to run
-    seg_out = _Fseg(Ig, ws=ws, segn=n_segments, omega=omega, nonneg_constraint=nonneg_constraint)
+    seg_out = _Fseg(Ig, ws=ws, segn=n_segments, omega=omega, nonneg_constraint=nonneg_constraint,
+                    max_iteration_mse=max_iteration_mse, max_iteration_convergence=max_iteration_convergence,
+                    max_error=max_error, max_convergence_error=max_convergence_error, epsilon=epsilon,
+                    threshold_lim=threshold_lim)
 
-    print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
+    total_time = time.time() - time0
+    print('FSEG runs in %0.2f seconds. ' % total_time)
     title = "Plot using ws={}, segn={}, omega={} and nonneg_flag={}".format(ws, n_segments, omega, nonneg_constraint)
 
     # show results
     overlay(img, seg_out, 0.6, cmap="viridis", save_fig=save_dir + save_file_name, save_dir=save_dir, plot_title=title)
+
+    if (save_params):
+        with open(save_dir + save_file_name.replace(".png", ".txt"), "w") as f:
+            f.write("used params in this run that took {:.2f} seconds to run\n".format(total_time))
+            f.write("ws : {}\n".format(ws))
+            f.write("n_segments : {}\n".format(n_segments))
+            f.write("omega : {}\n".format(omega))
+            f.write("nonneg_constraint : {}\n".format(nonneg_constraint))
+            f.write("save_dir : {}\n".format(save_dir))
+            f.write("save_file_name : {}\n".format(save_file_name))
+            f.write("random_bank_filters : {}\n".format(random_bank_filters))
+            f.write("max_iteration_mse : {}\n".format(max_iteration_mse))
+            f.write("max_iteration_convergence : {}\n".format(max_iteration_convergence))
+            f.write("max_error : {}\n".format(max_error))
+            f.write("max_convergence_error : {}\n".format(max_convergence_error))
+            f.write("epsilon : {}\n".format(epsilon))
+            f.write("save_params : {}\n".format(save_params))
+
+            f.close()
+
     return seg_out
 
 
@@ -284,6 +330,7 @@ if __name__ == '__main__':
     """
     Main function method to run via terminal
     """
+    # TODO : Need to document the default value for each parameter
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", type=str, help="file path")
     parser.add_argument("-shape_size", "--shape_size", nargs="+", type=int, help="shape size of the image")
@@ -298,6 +345,24 @@ if __name__ == '__main__':
     parser.add_argument("-save_dir", "--save_dir", type=str, help="path with the folder to save the file")
     parser.add_argument("-save_file_name", "--save_file_name", type=str,
                         help="file name with the extension to save the final result")
+    parser.add_argument("-max_iter_mse", "--max_iteration_mse", nargs="?", type=int,
+                        help="opcional parameter that represents the max number of iterations for LSE")
+    parser.add_argument("-max_iter_conver", "--max_iteration_convergence", nargs="?", type=int,
+                        help="opcional parameter that represents the max number of interation in the convergence "
+                             "condition")
+    parser.add_argument("-max_error", "--max_error", nargs="?", type=float,
+                        help="opcional parameter that represents the max error value to stop the LSE")
+    parser.add_argument("-max_convergence_error", "--max_convergence_error", nargs="?", type=float,
+                        help="opcional parameter that represents the max error value to stop the convergence")
+    parser.add_argument("-epsilon", "--epsilon", nargs="?", type=float,
+                        help="opcional parameter that represents the value used in the equation Y = ZB + epsilon (see "
+                             "the paper for more details)")
+    parser.add_argument("-random_filter", "--random_filter", nargs="?", type=bool,
+                        help="opcional parameter to set a random bank of filters")
+    parser.add_argument("-save_params", "--save_params", nargs="?", type=bool,
+                        help="opcional parameter that save all the parameters into a .txt file")
+    parser.add_argument("-threshold_lim", "--threshold_lim", nargs="?", type=float,
+                        help="opcional parameter to use as the Y threshold_min")
     args = parser.parse_args()
 
     file_path = args.file
@@ -309,6 +374,17 @@ if __name__ == '__main__':
     nonneg_constraint = args.nonneg_constraint
     save_dir = args.save_dir
     save_file_name = args.save_file_name
+    max_iter_mse = 50 if args.max_iteration_mse is None else args.max_iteration_mse
+    max_iter_conver = 50 if args.max_iteration_mse is None else args.max_iteration_convergence
+    max_error = 0.001 if args.max_error is None else args.max_error
+    max_convergence_error = 0.00001 if args.max_convergence_error is None else args.max_convergence_error
+    epsilon = 0.01 if args.epsilon is None else args.epsilon
+    random_filter = False if args.random_filter is None else args.random_filter
+    save_params = False if args.save_params is None else args.save_params
+    threshold_lim = 0.4 if args.threshold_lim is None else args.threshold_lim
 
     img = io_from_prompt(file_path, img_shape, dtype)
-    _ = run_fct_seg(img, ws, n_segments, omega, nonneg_constraint, save_dir, save_file_name)
+    _ = run_fct_seg(img, ws, n_segments, omega, nonneg_constraint, save_dir, save_file_name,
+                    random_bank_filters=random_filter, max_iteration_mse=max_iter_mse,
+                    max_iteration_convergence=max_iter_conver, max_error=max_error,
+                    max_convergence_error=max_convergence_error, epsilon=epsilon, save_params=save_params)
