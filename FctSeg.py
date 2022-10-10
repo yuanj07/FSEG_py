@@ -347,7 +347,7 @@ if __name__ == '__main__':
                              "condition")
     parser.add_argument("-max_error", "--max_error", nargs="?", type=float, default=0.001,
                         help="opcional parameter that represents the max error value to stop the LSE")
-    parser.add_argument("-max_convergence_error", "--max_convergence_error", nargs="?", type=float,
+    parser.add_argument("-max_convergence_error", "--max_convergence_error", nargs="?", type=float, default=0.00001,
                         help="opcional parameter that represents the max error value to stop the convergence")
     parser.add_argument("-epsilon", "--epsilon", nargs="?", type=float, default=0.00001,
                         help="opcional parameter that represents the value used in the equation Y = ZB + epsilon (see "
