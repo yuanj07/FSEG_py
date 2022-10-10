@@ -236,7 +236,8 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
 
 
 def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_constraint: bool, save_dir: str,
-                save_file_name: str, random_bank_filters: bool = False, max_iteration_mse: int = 50,
+                save_file_name: str, random_bank_filters: bool = False,
+                filter_list: list[tuple] = get_default_filters(), max_iteration_mse: int = 50,
                 max_iteration_convergence: int = 50, max_error: float = 0.001, max_convergence_error: float = 0.00001,
                 epsilon: float = 0.01, save_params: bool = False, threshold_lim: float = 0.4) -> np.ndarray:
     """
@@ -251,6 +252,8 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
         nonneg_constraint (bool): flag that if True, will apply the negative matrix factorization
         save_dir (str): string to save into that directory
         save_file_name (str): string to save the file name
+        random_bank_filters (bool):
+        filter_list (list[tuple]):
         max_iteration_mse (int):
         max_iteration_convergence (int):
         max_error (float):
@@ -272,15 +275,6 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
     #                ('gabor', 2.5, 0), ('gabor', 2.5, np.pi / 2), ('gabor', 2.5, np.pi / 4),
     #                ('gabor', 2.5, -np.pi / 4)
     #                ]
-
-    filter_list = [('log', .4, [3, 3]), ('log', .45, [5, 5]),
-                   ('log', .5, [3, 3]), ('log', 1, [5, 5]),
-                   ('log', 1.5, [7, 7]), ('log', 2.0, [9, 9]),
-                   ('gabor', 1.5, 0), ('gabor', 1.5, np.pi / 2), ('gabor', 1.5, np.pi / 4),
-                   ('gabor', 1.5, -np.pi / 4),
-                   ('gabor', 2.5, 0), ('gabor', 2.5, np.pi / 2), ('gabor', 2.5, np.pi / 4),
-                   ('gabor', 2.5, -np.pi / 4)
-                   ]
 
     if (random_bank_filters):
         shuffle(filter_list)
@@ -333,7 +327,8 @@ if __name__ == '__main__':
     # TODO : Need to document the default value for each parameter
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", type=str, help="file path")
-    parser.add_argument("-shape_size", "--shape_size", nargs="+", type=int, help="shape size of the image")
+    parser.add_argument("-shape_size", "--shape_size", nargs="+", type=int, default=(0, 0, 0),
+                        help="shape size of the image")
     parser.add_argument("-dtype", "--dtype", nargs="?", type=str, help="image dtype")
     parser.add_argument("-ws", "--window_size", type=int, help="window size for local special histogram")
     parser.add_argument("-segn", "--number_segments", type=int,
@@ -345,23 +340,23 @@ if __name__ == '__main__':
     parser.add_argument("-save_dir", "--save_dir", type=str, help="path with the folder to save the file")
     parser.add_argument("-save_file_name", "--save_file_name", type=str,
                         help="file name with the extension to save the final result")
-    parser.add_argument("-max_iter_mse", "--max_iteration_mse", nargs="?", type=int,
+    parser.add_argument("-max_iter_mse", "--max_iteration_mse", nargs="?", type=int, default=50,
                         help="opcional parameter that represents the max number of iterations for LSE")
-    parser.add_argument("-max_iter_conver", "--max_iteration_convergence", nargs="?", type=int,
+    parser.add_argument("-max_iter_conver", "--max_iteration_convergence", nargs="?", type=int, default=50,
                         help="opcional parameter that represents the max number of interation in the convergence "
                              "condition")
-    parser.add_argument("-max_error", "--max_error", nargs="?", type=float,
+    parser.add_argument("-max_error", "--max_error", nargs="?", type=float, default=0.001,
                         help="opcional parameter that represents the max error value to stop the LSE")
-    parser.add_argument("-max_convergence_error", "--max_convergence_error", nargs="?", type=float,
+    parser.add_argument("-max_convergence_error", "--max_convergence_error", nargs="?", type=float, default=0.00001,
                         help="opcional parameter that represents the max error value to stop the convergence")
-    parser.add_argument("-epsilon", "--epsilon", nargs="?", type=float,
+    parser.add_argument("-epsilon", "--epsilon", nargs="?", type=float, default=0.00001,
                         help="opcional parameter that represents the value used in the equation Y = ZB + epsilon (see "
                              "the paper for more details)")
-    parser.add_argument("-random_filter", "--random_filter", nargs="?", type=bool,
+    parser.add_argument("-random_filter", "--random_filter", nargs="?", type=bool, default=False,
                         help="opcional parameter to set a random bank of filters")
-    parser.add_argument("-save_params", "--save_params", nargs="?", type=bool,
+    parser.add_argument("-save_params", "--save_params", nargs="?", type=bool, default=False,
                         help="opcional parameter that save all the parameters into a .txt file")
-    parser.add_argument("-threshold_lim", "--threshold_lim", nargs="?", type=float,
+    parser.add_argument("-threshold_lim", "--threshold_lim", nargs="?", type=float, default=0.4,
                         help="opcional parameter to use as the Y threshold_min")
     args = parser.parse_args()
 
@@ -374,14 +369,14 @@ if __name__ == '__main__':
     nonneg_constraint = args.nonneg_constraint
     save_dir = args.save_dir
     save_file_name = args.save_file_name
-    max_iter_mse = 50 if args.max_iteration_mse is None else args.max_iteration_mse
-    max_iter_conver = 50 if args.max_iteration_mse is None else args.max_iteration_convergence
-    max_error = 0.001 if args.max_error is None else args.max_error
-    max_convergence_error = 0.00001 if args.max_convergence_error is None else args.max_convergence_error
-    epsilon = 0.01 if args.epsilon is None else args.epsilon
-    random_filter = False if args.random_filter is None else args.random_filter
-    save_params = False if args.save_params is None else args.save_params
-    threshold_lim = 0.4 if args.threshold_lim is None else args.threshold_lim
+    max_iter_mse = args.max_iteration_mse
+    max_iter_conver = args.max_iteration_mse
+    max_error = args.max_error
+    max_convergence_error = args.max_convergence_error
+    epsilon = args.epsilon
+    random_filter = args.random_filter
+    save_params = args.save_params
+    threshold_lim = args.threshold_lim
 
     img = io_from_prompt(file_path, img_shape, dtype)
     _ = run_fct_seg(img, ws, n_segments, omega, nonneg_constraint, save_dir, save_file_name,

@@ -50,6 +50,17 @@ def custom_print(msg: str, payload: any) -> None:
     print(100 * "-" + "\n")
 
 
+def get_default_filters() -> list[tuple]:
+    return [('log', .4, [3, 3]), ('log', .45, [5, 5]),
+            ('log', .5, [3, 3]), ('log', 1, [5, 5]),
+            ('log', 1.5, [7, 7]), ('log', 2.0, [9, 9]),
+            ('gabor', 1.5, 0), ('gabor', 1.5, np.pi / 2), ('gabor', 1.5, np.pi / 4),
+            ('gabor', 1.5, -np.pi / 4),
+            ('gabor', 2.5, 0), ('gabor', 2.5, np.pi / 2), ('gabor', 2.5, np.pi / 4),
+            ('gabor', 2.5, -np.pi / 4)
+            ]
+
+
 def io_from_prompt(img_path: str, shape_size: tuple[int, int, int] or tuple[int, int], dtype: str) -> np.ndarray:
     """
     io function to read png, jpg, tiff and raw files
