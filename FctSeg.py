@@ -236,7 +236,8 @@ def _Fseg(Ig: np.ndarray, ws: int, segn: int, omega: float, nonneg_constraint: b
 
 
 def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_constraint: bool, save_dir: str,
-                save_file_name: str, random_bank_filters: bool = False, max_iteration_mse: int = 50,
+                save_file_name: str, random_bank_filters: bool = False,
+                filter_list: list[tuple] = get_default_filters(), max_iteration_mse: int = 50,
                 max_iteration_convergence: int = 50, max_error: float = 0.001, max_convergence_error: float = 0.00001,
                 epsilon: float = 0.01, save_params: bool = False, threshold_lim: float = 0.4) -> np.ndarray:
     """
@@ -251,6 +252,8 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
         nonneg_constraint (bool): flag that if True, will apply the negative matrix factorization
         save_dir (str): string to save into that directory
         save_file_name (str): string to save the file name
+        random_bank_filters (bool):
+        filter_list (list[tuple]):
         max_iteration_mse (int):
         max_iteration_convergence (int):
         max_error (float):
@@ -272,15 +275,6 @@ def run_fct_seg(img: np.ndarray, ws: int, n_segments: int, omega: float, nonneg_
     #                ('gabor', 2.5, 0), ('gabor', 2.5, np.pi / 2), ('gabor', 2.5, np.pi / 4),
     #                ('gabor', 2.5, -np.pi / 4)
     #                ]
-
-    filter_list = [('log', .4, [3, 3]), ('log', .45, [5, 5]),
-                   ('log', .5, [3, 3]), ('log', 1, [5, 5]),
-                   ('log', 1.5, [7, 7]), ('log', 2.0, [9, 9]),
-                   ('gabor', 1.5, 0), ('gabor', 1.5, np.pi / 2), ('gabor', 1.5, np.pi / 4),
-                   ('gabor', 1.5, -np.pi / 4),
-                   ('gabor', 2.5, 0), ('gabor', 2.5, np.pi / 2), ('gabor', 2.5, np.pi / 4),
-                   ('gabor', 2.5, -np.pi / 4)
-                   ]
 
     if (random_bank_filters):
         shuffle(filter_list)
