@@ -6,6 +6,7 @@ The algorithm is described in
 **J. Yuan, D. L. Wang, and A. M. Cheriyadat. Factorization-based texture segmentation. IEEE Transactions on Image
 Processing, 2015.**
 
+
 [Here](https://sites.google.com/site/factorizationsegmentation/) is a brief introduction of the
 algorithm. [Here](https://medium.com/@jiangye07/fast-local-histogram-computation-using-numpy-array-operations-d96eda02d3c)
 is an explanation of computing local histograms based on integral histograms.
