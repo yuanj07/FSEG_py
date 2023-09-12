@@ -5,11 +5,11 @@ Factorization based segmentation with manually selected seeds
 """
 import time
 import numpy as np
-from fseg_filters import image_filtering
-import matplotlib.pyplot as plt
+import argparse
+import cv2
 
 from scipy import linalg as LAsci
-from skimage import io
+from utils.fseg_filters import image_filtering, overlay
 
 
 def SHcomp(Ig, ws, BinN=11):
@@ -21,6 +21,7 @@ def SHcomp(Ig, ws, BinN=11):
     :return: local spectral histogram at each pixel
     """
     h, w, bn = Ig.shape
+    ws = int(ws)
 
     # quantize values at each pixel into bin ID
     for i in range(bn):
@@ -31,14 +32,14 @@ def SHcomp(Ig, ws, BinN=11):
         b_interval = (b_max - b_min) * 1. / BinN
         Ig[:, :, i] = np.floor((Ig[:, :, i] - b_min) / b_interval)
 
-    Ig[Ig >= BinN] = BinN-1
+    Ig[Ig >= BinN] = BinN - 1
     Ig = np.int32(Ig)
 
     # convert to one hot encoding
     one_hot_pix = []
     for i in range(bn):
-        one_hot_pix_b = np.zeros((h*w, BinN), dtype=np.int32)
-        one_hot_pix_b[np.arange(h*w), Ig[:, :, i].flatten()] = 1
+        one_hot_pix_b = np.zeros((h * w, BinN), dtype=np.int32)
+        one_hot_pix_b[np.arange(h * w), Ig[:, :, i].flatten()] = 1
         one_hot_pix.append(one_hot_pix_b.reshape((h, w, BinN)))
 
     # compute integral histogram
@@ -60,7 +61,7 @@ def SHcomp(Ig, ws, BinN=11):
 
     integral_hist_1 = integral_hist_pad[ws + 1 + ws:, ws + 1 + ws:, :]
     integral_hist_2 = integral_hist_pad[:-ws - ws - 1, :-ws - ws - 1, :]
-    integral_hist_3 = integral_hist_pad[ws + 1 + ws:, :-ws - ws -1, :]
+    integral_hist_3 = integral_hist_pad[ws + 1 + ws:, :-ws - ws - 1, :]
     integral_hist_4 = integral_hist_pad[:-ws - ws - 1, ws + 1 + ws:, :]
 
     sh_mtx = integral_hist_1 + integral_hist_2 - integral_hist_3 - integral_hist_4
@@ -75,7 +76,7 @@ def SHcomp(Ig, ws, BinN=11):
 def Fseg(Ig, ws, seeds):
     """
     Factorization based segmentation
-    :param Ig: a n-band image
+    :param Ig: an n-band image
     :param ws: window size for local special histogram
     :param seeds: list of coordinates [row, column] for seeds. each seed represent one type of texture
     :param omega: error threshod for estimating segment number. need to adjust for different filter bank.
@@ -105,9 +106,26 @@ def Fseg(Ig, ws, seeds):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-f", "--file", help="file path")
+    parser.add_argument("-ws", "--window_size", help="window size for local special histogram")
+    parser.add_argument("-s", "--seeds",
+                        help="list of coordinates [row, column] for seeds. each seed represent one type of texture")
+    parser.add_argument("-save_dir", "--save_dir", help="path with the folder to save the file")
+    parser.add_argument("-save_file_name", "--save_file_name",
+                        help="file name with the extension to save the final result")
+    args = parser.parse_args()
+
+    file_path = args.file
+    ws = int(args.window_size)
+    #seeds = args.seeds
+    save_dir = args.save_dir
+    save_file_name = args.save_file_name
+
     time0 = time.time()
     # an example of using Fseg
-    img = io.imread('M1.pgm')
+    img = cv2.imread(file_path, 0)
 
     # define filter bank and apply to image. for color images, convert rgb to grey scale and then apply filter bank
     filter_list = [('log', .5, [3, 3]), ('log', 1.2, [7, 7])]
@@ -120,15 +138,10 @@ if __name__ == '__main__':
     seeds = [[60, 238], [160, 160], [238, 60]]  # provide seeds
 
     # run segmentation. try different window size
-    seg_out = Fseg(Ig, ws=19, seeds=seeds)
+    seg_out = Fseg(Ig, ws=ws, seeds=seeds)
 
-    print 'FSEG runs in %0.2f seconds. ' % (time.time() - time0)
+    print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
+    title = "Plot using ws={}".format(ws)
 
     # show results
-    fig, ax = plt.subplots(ncols=2, sharex=True, sharey=True, figsize=(10, 5))
-    ax[0].imshow(img, cmap='gray')
-    seeds = np.array(seeds)
-    plt.plot(seeds[:, 1], seeds[:, 0], 'r*')
-    ax[1].imshow(seg_out, cmap='gray')
-    plt.tight_layout()
-    plt.show()
+    overlay(img, seg_out, 0.6, cmap="viridis", save_fig=save_dir + save_file_name, save_dir=save_dir, plot_title=title)
