@@ -46,8 +46,8 @@ def SHcomp(Ig, ws, BinN=11):
     # compute integral histogram
     integral_hist = np.concatenate(one_hot_pix, axis=2)
 
-    np.cumsum(integral_hist, axis=1, out=integral_hist, dtype=np.float32)
-    np.cumsum(integral_hist, axis=0, out=integral_hist, dtype=np.float32)
+    np.cumsum(integral_hist, axis=1, out=integral_hist)
+    np.cumsum(integral_hist, axis=0, out=integral_hist)
 
     # compute spectral histogram based on integral histogram
     padding_l = np.zeros((h, ws + 1, BinN * bn), dtype=np.int32)
@@ -65,11 +65,11 @@ def SHcomp(Ig, ws, BinN=11):
     integral_hist_3 = integral_hist_pad[ws + 1 + ws:, :-ws - ws -1, :]
     integral_hist_4 = integral_hist_pad[:-ws - ws - 1, ws + 1 + ws:, :]
 
-    sh_mtx = integral_hist_1 + integral_hist_2 - integral_hist_3 - integral_hist_4
+    sh_mtx = np.float32(integral_hist_1 + integral_hist_2 - integral_hist_3 - integral_hist_4)
 
     histsum = np.sum(sh_mtx, axis=-1, keepdims=True) * 1. / bn
 
-    sh_mtx = np.float32(sh_mtx) / np.float32(histsum)
+    sh_mtx /= histsum
 
     return sh_mtx
 
@@ -77,10 +77,9 @@ def SHcomp(Ig, ws, BinN=11):
 def SHedgeness(sh_mtx, ws):
     h, w, _ = sh_mtx.shape
     edge_map = np.ones((h, w)) * -1
-    for i in range(ws, h-ws-1):
-        for j in range(ws, w-ws-1):
-            edge_map[i, j] = np.sqrt(np.sum((sh_mtx[i - ws, j, :] - sh_mtx[i + ws, j, :])**2)
-                                     + np.sum((sh_mtx[i, j - ws, :] - sh_mtx[i, j + ws, :])**2))
+    tmp = np.sum((sh_mtx[:-ws*2, ws:-ws, :] - sh_mtx[ws*2:, ws:-ws, :])**2, axis=-1) + \
+          np.sum((sh_mtx[ws:-ws, :-ws*2, :] - sh_mtx[ws:-ws, ws*2:, :])**2, axis=-1)
+    edge_map[ws:-ws, ws:-ws] = np.sqrt(tmp)
     return edge_map
 
 
@@ -97,7 +96,7 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
 
     N1, N2, bn = Ig.shape
 
-    ws = ws / 2
+    ws = ws // 2
     sh_mtx = SHcomp(Ig, ws)
     sh_dim = sh_mtx.shape[2]
 
@@ -111,14 +110,14 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
 
     if segn == 0:  # estimate the segment number
         lse_ratio = np.cumsum(k) * 1. / (N1 * N2)
-        print lse_ratio
-        print np.sum(k)/(N1 * N2)
+        print(lse_ratio)
+        print(np.sum(k)/(N1 * N2))
         segn = np.sum(lse_ratio > omega)
-        print 'Estimated segment number: %d' % segn
+        print('Estimated segment number: %d' % segn)
 
         if segn <= 1:
             segn = 2
-            print 'Warning: Segment number is set to 2. May need to reduce omega for better segment number estimation.'
+            print('Warning: Segment number is set to 2. May need to reduce omega for better segment number estimation.')
 
     dimn = segn
 
@@ -173,16 +172,15 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
     seg_label = np.argmax(Beta, axis=0)
 
     if nonneg_constraint:
-        w0 = np.dot(U1, cls_cen_new)
+        w = np.dot(U1, cls_cen_new)
         dnorm0 = 1
 
         h = Beta * 1.
         for i in range(100):
-            tmp, _, _, _ = LA.lstsq(np.dot(w0.T, w0) + np.eye(segn) * .01, np.dot(w0.T, Y.T))
+            tmp, _, _, _ = LA.lstsq(np.dot(w.T, w) + np.eye(segn) * .01, np.dot(w.T, Y.T), rcond=None)
             h = np.maximum(0, tmp)
-            tmp, _, _, _ = LA.lstsq(np.dot(h, h.T) + np.eye(segn) * .01, np.dot(h, Y))
-            w = np.maximum(0, tmp)
-            w = w.T * 1.
+            tmp, _, _, _ = LA.lstsq(np.dot(h, h.T) + np.eye(segn) * .01, np.dot(h, Y), rcond=None)
+            w = np.maximum(0, tmp.T)
 
             d = Y.T - np.dot(w, h)
             dnorm = np.sqrt(np.mean(d * d))
@@ -190,7 +188,6 @@ def Fseg(Ig, ws, segn, omega, nonneg_constraint=True):
             if np.abs(dnorm - dnorm0) < .1:
                 break
 
-            w0 = w * 1.
             dnorm0 = dnorm * 1.
 
         seg_label = np.argmax(h, axis=0)
@@ -218,7 +215,7 @@ if __name__ == '__main__':
     # run segmentation. try different window size, with and without nonneg constraints
     seg_out = Fseg(Ig, ws=25, segn=0, omega=.045, nonneg_constraint=True)
 
-    print 'FSEG runs in %0.2f seconds. ' % (time.time() - time0)
+    print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
 
     # show results
     fig, ax = plt.subplots(ncols=2, sharex=True, sharey=True, figsize=(12, 6))

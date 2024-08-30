@@ -63,11 +63,11 @@ def SHcomp(Ig, ws, BinN=11):
     integral_hist_3 = integral_hist_pad[ws + 1 + ws:, :-ws - ws -1, :]
     integral_hist_4 = integral_hist_pad[:-ws - ws - 1, ws + 1 + ws:, :]
 
-    sh_mtx = integral_hist_1 + integral_hist_2 - integral_hist_3 - integral_hist_4
+    sh_mtx = np.float32(integral_hist_1 + integral_hist_2 - integral_hist_3 - integral_hist_4)
 
     histsum = np.sum(sh_mtx, axis=-1, keepdims=True) * 1. / bn
 
-    sh_mtx = np.float32(sh_mtx) / np.float32(histsum)
+    sh_mtx /= histsum
 
     return sh_mtx
 
@@ -85,7 +85,7 @@ def Fseg(Ig, ws, seeds):
 
     N1, N2, bn = Ig.shape
 
-    ws = ws / 2
+    ws = ws // 2
     sh_mtx = SHcomp(Ig, ws)
 
     Z = []
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     # run segmentation. try different window size
     seg_out = Fseg(Ig, ws=19, seeds=seeds)
 
-    print 'FSEG runs in %0.2f seconds. ' % (time.time() - time0)
+    print('FSEG runs in %0.2f seconds. ' % (time.time() - time0))
 
     # show results
     fig, ax = plt.subplots(ncols=2, sharex=True, sharey=True, figsize=(10, 5))

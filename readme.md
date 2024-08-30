@@ -10,7 +10,7 @@ There is also a MATLAB [implementation](https://github.com/yuanj07/FSEG). The re
 
 ## Prerequisites
 
-Python 2.7
+Python 3
 
 Numpy
 
